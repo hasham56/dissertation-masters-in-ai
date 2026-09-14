@@ -1,0 +1,114 @@
+{
+  "Office.png": {
+    "tile_x": 0,
+    "tile_y": 0,
+    "w_tiles": 18,
+    "h_tiles": 32,
+    "first_tile_id": 0
+  },
+  "Mall.png": {
+    "tile_x": 19,
+    "tile_y": 0,
+    "w_tiles": 24,
+    "h_tiles": 24,
+    "first_tile_id": 19
+  },
+  "Hospital.png": {
+    "tile_x": 0,
+    "tile_y": 33,
+    "w_tiles": 20,
+    "h_tiles": 20,
+    "first_tile_id": 2640
+  },
+  "Hotel.png": {
+    "tile_x": 21,
+    "tile_y": 33,
+    "w_tiles": 20,
+    "h_tiles": 20,
+    "first_tile_id": 2661
+  },
+  "Nightclub.png": {
+    "tile_x": 42,
+    "tile_y": 33,
+    "w_tiles": 12,
+    "h_tiles": 20,
+    "first_tile_id": 2682
+  },
+  "House2.png": {
+    "tile_x": 55,
+    "tile_y": 33,
+    "w_tiles": 18,
+    "h_tiles": 10,
+    "first_tile_id": 2695
+  },
+  "House3.png": {
+    "tile_x": 0,
+    "tile_y": 54,
+    "w_tiles": 18,
+    "h_tiles": 10,
+    "first_tile_id": 4320
+  },
+  "House4.1.png": {
+    "tile_x": 19,
+    "tile_y": 54,
+    "w_tiles": 18,
+    "h_tiles": 10,
+    "first_tile_id": 4339
+  },
+  "House4.png": {
+    "tile_x": 38,
+    "tile_y": 54,
+    "w_tiles": 18,
+    "h_tiles": 10,
+    "first_tile_id": 4358
+  },
+  "House6_RightGate.png": {
+    "tile_x": 57,
+    "tile_y": 54,
+    "w_tiles": 18,
+    "h_tiles": 10,
+    "first_tile_id": 4377
+  },
+  "House1.png": {
+    "tile_x": 0,
+    "tile_y": 65,
+    "w_tiles": 14,
+    "h_tiles": 8,
+    "first_tile_id": 5200
+  },
+  "House5_RightGate.png": {
+    "tile_x": 15,
+    "tile_y": 65,
+    "w_tiles": 15,
+    "h_tiles": 8,
+    "first_tile_id": 5215
+  },
+  "House7_RightGate.png": {
+    "tile_x": 31,
+    "tile_y": 65,
+    "w_tiles": 15,
+    "h_tiles": 8,
+    "first_tile_id": 5231
+  },
+  "House8.1_RightGate.png": {
+    "tile_x": 47,
+    "tile_y": 65,
+    "w_tiles": 15,
+    "h_tiles": 8,
+    "first_tile_id": 5247
+  },
+  "House8_RightGate.png": {
+    "tile_x": 63,
+    "tile_y": 65,
+    "w_tiles": 15,
+    "h_tiles": 8,
+    "first_tile_id": 5263
+  },
+  "farm.png": {
+    "tile_x": 44,
+    "tile_y": 0,
+    "w_tiles": 25,
+    "h_tiles": 25,
+    "first_tile_id": 44
+  }
+}

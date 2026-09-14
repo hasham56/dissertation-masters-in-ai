@@ -1,0 +1,23 @@
+{
+  "name": "collective_lambda_05",
+  "base": "A-S1-N9",
+  "set_points": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "drive_weights": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "population": "neutral",
+  "collective_lambda": 0.5,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "steps": 10000000,
+  "notes": "Half of every agent's reward replaced by the population mean (r_i <- 0.5 r_i + 0.5 mean_j r_j), everything else neutral; the log keeps the raw -D and the shaped reward goes to shaped_reward.parquet. Expected fingerprint against neutral_anchor: the individual incentive is diluted, so per-agent drive equalises (a lower spread of mean drive across agents) and SOCIAL crowding redistributes, since presence at SOCIAL now pays through others' restored social need as well; contention per agent-day at the canteen falls if agents yield seats; the open question is whether the fingerprint diverges from neutral_anchor at all at this budget, or whether free-riding (own states mattering less) leaves the time budgets where they were with a higher mean drive. Either outcome is the finding."
+}

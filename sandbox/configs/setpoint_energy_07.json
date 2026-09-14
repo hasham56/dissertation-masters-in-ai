@@ -1,0 +1,24 @@
+{
+  "name": "setpoint_energy_07",
+  "base": "A-S1-N9",
+  "set_points": {
+    "energy": 0.7,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "drive_weights": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "population": "neutral",
+  "collective_lambda": 0.0,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "steps": 10000000,
+  "set_point_form": "deficit",
+  "notes": "Energy set point 0.7 under the deficit form: energy above 0.7 costs nothing, below it costs (0.7 - E)^2. Expected fingerprint against neutral_anchor: lower sleep pressure, so shorter nights (later sleep onset and earlier wake in goals.json, a smaller HOME fraction, fewer HOME ticks in the 22:00-06:00 rows of the hour x zone matrix) and the freed time redistributed to SOCIAL and CANTEEN; mean energy settles nearer 0.7 than the anchor's level; mean_drive_per_need[energy] on the study's ruler rises while the sandbox drive falls. Under the deficit form there is no incentive to avoid the night-rest bonus overshoot, so agents that do sleep still sleep through; if nights do not shorten, the 1.5x night bonus makes rest cheap enough that the set point does not bind and the next exploration lowers it further or switches to the symmetric form."
+}

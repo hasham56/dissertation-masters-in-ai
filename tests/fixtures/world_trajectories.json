@@ -1,0 +1,22 @@
+{
+  "tag": "study-n9",
+  "days": 2,
+  "seeds": [
+    0,
+    10000
+  ],
+  "reason": [
+    "The population moved from 8 agents to 9 and the capacities followed their registered formulas: canteen ceil(N/4) 2 -> 3, each job ceil(N/2) 4 -> 5. Every trajectory changes by construction, because the observation is 46 + N wide and one more agent draws from the world stream. The previous pins were travel-v1 and jobset-v1.",
+    "GREEDY-CLOCK-WORK only, re-pinned separately: where aptitude does not separate the two jobs it now breaks the tie with a per-episode random ranking instead of by distance from the agent's home, a vestige of the world that fixed-cost travel removed. Homes sit in a column in agent order, so that term handed identical agents a fixed identity-linked division of labour and the H3 positive control's neutral population read a cross-episode ARI of 0.84 against its 0.2 ceiling; it now reads -0.08 and the control passes. Only the two GREEDY-CLOCK-WORK hashes move: the other six are byte-identical, because the ranking is drawn from the core's bit-generator state without consuming it and no world draw shifts."
+  ],
+  "hashes": {
+    "RANDOM/seed0": "588aa7e37dc1d5abc51d928089dc35bc33eba78883ac889ad586c32b758f23fd",
+    "RANDOM/seed10000": "a9e9b8d921bae714094bf302784f8bc07d9a3685c968f35e32ee705989cf0b5c",
+    "GREEDY-STATE/seed0": "a372e258967acfb8bfe44dbe28325e32068a35c4580202bc8351861902e081c6",
+    "GREEDY-STATE/seed10000": "7023d20e3d0f2b7874a5f99a7482b2f3a6f84d6f47186143bb22356e9a4e5d28",
+    "GREEDY-CLOCK/seed0": "3d7a88e10bf779ac01d8f38ed578d583280883e5296c47272ce7c238a015c6a8",
+    "GREEDY-CLOCK/seed10000": "77dfe70071d2949013f76d45c35777a3f13473a5748909762419508e6c6137fb",
+    "GREEDY-CLOCK-WORK/seed0": "5aa6076efbdfbd83f32a9373a8411a8df75d22797369f397878180a2096d11f4",
+    "GREEDY-CLOCK-WORK/seed10000": "fcbd514609d4ccfb95bff8ec21fb2fdeed9d5379037fd91d035192423f483ed6"
+  }
+}

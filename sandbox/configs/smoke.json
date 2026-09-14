@@ -1,0 +1,24 @@
+{
+  "name": "smoke",
+  "base": "A-S1-N9",
+  "set_points": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "drive_weights": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "population": "neutral",
+  "collective_lambda": 0.0,
+  "seeds": [
+    0
+  ],
+  "steps": 100000,
+  "eval_seeds": [
+    10000
+  ],
+  "notes": "End-to-end check only: neutral levers, one seed, 100,000 agent-steps (a few updates), then fingerprint and readout on the evaluation Parquet. No behavioural expectation; the policy is barely trained and the fingerprint is expected to sit near RANDOM's."
+}

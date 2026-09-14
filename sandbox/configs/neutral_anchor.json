@@ -1,0 +1,23 @@
+{
+  "name": "neutral_anchor",
+  "base": "A-S1-N9",
+  "set_points": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "drive_weights": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "population": "neutral",
+  "collective_lambda": 0.0,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "steps": 10000000,
+  "notes": "All levers neutral: the study's drive (set points 1.0, weights 1.0, symmetric form), neutral population, lambda 0. This is the comparison anchor for every other config and must reproduce the study trainer checkpoint for checkpoint (sandbox/tests/test_parity.py). Expected fingerprint: whatever A-S1-N9 does at this budget; nothing is predicted about it here, it is the ruler the other three are measured against."
+}

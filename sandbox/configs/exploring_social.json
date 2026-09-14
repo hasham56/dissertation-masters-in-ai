@@ -1,0 +1,23 @@
+{
+  "name": "exploring_social",
+  "base": "A-S1-N9",
+  "set_points": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 1.0
+  },
+  "drive_weights": {
+    "energy": 1.0,
+    "satiety": 1.0,
+    "social": 2.0
+  },
+  "population": "neutral",
+  "collective_lambda": 0.0,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "steps": 10000000,
+  "notes": "Doubling the social weight with everything else at the study's values. Expected fingerprint against neutral_anchor: the SOCIAL time fraction rises and social visits start at a higher social level (earlier anticipation of the social need); meal timing shifts to protect social time (canteen and market visits move out of the evening social window, so the hour x zone matrix moves in the CANTEEN and MARKET rows more than the SOCIAL fraction alone suggests); energy and satiety budgets shrink a little to pay for it; canteen contention unchanged or lower; the clock gain (H1a statistic) is not expected to move, since nothing about the schedule changed. If SOCIAL time does not rise, the social drain (0.002 per tick) is too slow for the weight to matter at this budget, and the next exploration is on the social set point rather than the weight."
+}

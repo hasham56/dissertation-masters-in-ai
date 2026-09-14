@@ -1,0 +1,1146 @@
+<title>Hamlet replay viewer</title>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --ink: #f4f4f5; --dim: #a1a1aa; --ground: #18181b; --panel: #27272a;
+    --line: #3f3f46; --accentE: #4dabf7; --accentF: #51cf66; --accentC: #cc5de8;
+    --grass: #718f3f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink);
+         font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #wrap { display: grid; grid-template-columns: 1fr 300px; height: 100vh; }
+  #stage { position: relative; overflow: hidden; background: var(--grass); }
+  aside { background: var(--panel); border-left: 1px solid var(--line);
+          padding: 12px 14px; overflow-y: auto; overflow-x: hidden; }
+  h1 { font-size: 14px; margin: 0 0 2px; font-weight: 600; }
+  .label { color: var(--dim); font-size: 11px; margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+  .clock { font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 650; letter-spacing: .5px; }
+  .day { color: var(--dim); font-size: 12px; }
+  button, select { background: #3f3f46; color: var(--ink); border: 1px solid #52525b;
+                   border-radius: 4px; padding: 4px 9px; font: inherit; cursor: pointer; }
+  button:hover, select:hover { background: #52525b; }
+  input[type=range] { width: 100%; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  td, th { padding: 2px 3px; text-align: left; }
+  th { color: var(--dim); font-weight: 500; border-bottom: 1px solid var(--line); }
+  .bars { display: flex; flex-direction: column; gap: 2px; width: 84px; }
+  .bar { height: 4px; background: #3f3f46; border-radius: 2px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; }
+  .swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim);
+       margin: 14px 0 4px; font-weight: 600; }
+  #err { position: absolute; inset: 0; background: #450a0a; color: #fecaca; padding: 24px;
+         font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap;
+         display: none; overflow: auto; z-index: 50; }
+  .night { color: #93c5fd; }
+  .strip { height: 7px; width: 100%; border-radius: 2px; overflow: hidden;
+           background: #18181b; display: flex; margin-top: 2px; }
+  .strip > i { display: block; height: 100%; flex: 0 0 auto; }
+  .zkey { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 10px; color: var(--dim); }
+  .zkey span.s { width: 9px; height: 9px; border-radius: 2px; display: inline-block;
+                 vertical-align: -1px; margin-right: 3px; }
+  #agents td { vertical-align: top; }
+  #agents tr.follow { background: #3f3f46; }
+  .jump { display: flex; gap: 4px; }
+  #follow { max-width: 110px; }
+  #zoom { flex: 0 0 auto; }
+  .jump button { padding: 3px 6px; font-size: 11px; }
+  .hint { color: var(--dim); font-size: 10px; margin-top: 3px; }
+  .num { font-variant-numeric: tabular-nums; font-size: 10px; color: var(--dim); display: none; }
+  #agents tr:hover .num { display: block; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 10px 0 10px; padding: 3px;
+          background: #18181b; border: 1px solid var(--line); border-radius: 8px; }
+  .tabs button { background: transparent; border: 0; border-radius: 6px; padding: 6px 0; color: var(--dim); font-weight: 600; }
+  .tabs button:hover { background: #2f2f33; color: var(--ink); }
+  .tabs button.on { background: #2563eb; color: #fff; box-shadow: 0 1px 8px rgba(37, 99, 235, .45); }
+  button:disabled { opacity: .5; cursor: progress; }
+  input[type=text] { background: #3f3f46; color: var(--ink); border: 1px solid #52525b; border-radius: 4px;
+                     padding: 4px 6px; font: inherit; min-width: 0; }
+  #wrap.wide { grid-template-columns: 1fr 620px; }
+  #traitsPane { display: none; }
+  #wrap.wide #traitsPane { display: block; }
+  #wrap.wide #replayPane { display: none; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .card { background: #1f1f23; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .card header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .card img { width: 56px; height: 56px; image-rendering: pixelated; background: #0b0b0d; border-radius: 4px; }
+  .card .who { font-weight: 600; }
+  .trait { display: grid; grid-template-columns: 84px 1fr 52px; align-items: center; gap: 6px; font-size: 11px; }
+  .trait span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .trait.changed span:first-child { color: #fde68a; }
+  #traitsStatus { font-size: 11px; color: var(--dim); min-height: 16px; margin: 4px 0; }
+  #traitsStatus.bad { color: #fca5a5; }
+  #tSummary td:not(:first-child), #tSummary th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+  .overlay { position: absolute; z-index: 20; background: rgba(24, 24, 27, .85);
+             border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px;
+             box-shadow: 0 8px 28px rgba(0, 0, 0, .35); backdrop-filter: blur(6px); }
+  #clockCard { top: 12px; left: 12px; padding: 4px 14px 6px; display: flex; align-items: baseline; gap: 10px; }
+  #dock { left: 12px; right: 12px; bottom: 12px; padding: 8px 12px 10px; }
+  #dock #scrub { width: 100%; margin: 0 0 6px; display: block; }
+  #dock .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+  #dock .group { display: flex; align-items: center; gap: 6px; }
+  #dock input[type=range]:not(#scrub) { width: 110px; }
+  #dock .tag { min-width: 62px; }
+  button.primary { background: #2563eb; border-color: #3b82f6; min-width: 68px; font-weight: 600; }
+  button.primary:hover { background: #1d4ed8; }
+  #replaySel { width: 100%; margin: 2px 0 2px; }
+  aside select, aside input { max-width: 100%; }
+  img.face { width: 26px; height: 26px; image-rendering: pixelated; vertical-align: middle; margin-right: 5px;
+             background: #18181b; border-radius: 4px; }
+  #agents td.who { white-space: nowrap; }
+  #agents tbody tr { cursor: pointer; }
+  #agents tbody tr:hover { background: #313136; }
+  .places { display: flex; flex-direction: column; gap: 6px; }
+  .place { display: grid; grid-template-columns: 94px 1fr 56px; align-items: center; gap: 8px; font-size: 12px; }
+  .place .pname { display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .pbar { height: 6px; background: #3f3f46; border-radius: 3px; overflow: hidden; }
+  .pbar > i { display: block; height: 100%; border-radius: 3px; transition: width .15s; }
+  .pnum { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pnum small { color: var(--dim); }
+  .pnum b { color: #fbbf24; font-weight: 600; font-size: 10px; margin-left: 3px; }
+  .key { display: flex; flex-direction: column; gap: 8px; }
+  .keyrow { display: grid; grid-template-columns: 58px 1fr; gap: 6px; align-items: start; }
+  .keyname { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; padding-top: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px;
+          background: #1f1f23; border: 1px solid var(--line); font-size: 11px; white-space: nowrap; }
+  .chip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+</style>
+
+<div id="wrap">
+  <div id="stage">
+    <div id="err"></div>
+    <div id="clockCard" class="overlay">
+      <span class="clock" id="clock">--:--</span>
+      <span class="day" id="day"></span>
+      <span class="day night" id="nightTag"></span>
+    </div>
+    <div id="dock" class="overlay">
+      <input type="range" id="scrub" min="0" max="1439" value="0" aria-label="time">
+      <div class="controls">
+        <button id="playBtn" class="primary">Play</button>
+        <div class="group jump">
+          <button data-hour="6">06:00</button><button data-hour="12">12:00</button>
+          <button data-hour="19">19:00</button><button data-hour="23">23:00</button>
+        </div>
+        <div class="group">
+          <label class="day" for="speed">speed</label>
+          <input type="range" id="speed" min="1" max="20" value="4">
+          <span class="day tag" id="speedTag">4×</span>
+        </div>
+        <div class="group">
+          <label class="day" for="zoom">zoom</label>
+          <input type="range" id="zoom" min="100" max="250" value="100">
+          <span class="day tag" id="zoomTag">fill</span>
+          <button id="fillBtn">Fill</button><button id="wholeBtn">Whole map</button>
+        </div>
+        <div class="group">
+          <label class="day" for="follow">follow</label>
+          <select id="follow"><option value="">none</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside>
+    <h1>Hamlet replay</h1>
+    <div class="label" id="replayLabel">loading…</div>
+    <div class="tabs"><button id="tabReplay" class="on">Replay</button><button id="tabTraits">Traits</button></div>
+
+    <div id="replayPane">
+      <select id="replaySel" aria-label="replay"></select>
+      <div class="hint">Space plays · click a villager to follow</div>
+
+      <h2>Villagers</h2>
+      <table id="agents"><thead><tr><th></th><th>where</th><th>E / F / C</th></tr></thead><tbody></tbody></table>
+
+      <h2>Places</h2>
+      <div id="occ" class="places"></div>
+
+      <h2>Key</h2>
+      <div class="key">
+        <div class="keyrow"><span class="keyname">needs</span><span class="chips">
+          <span class="chip"><i style="background:var(--accentE)"></i>energy</span>
+          <span class="chip"><i style="background:var(--accentF)"></i>food</span>
+          <span class="chip"><i style="background:var(--accentC)"></i>social</span></span></div>
+        <div class="keyrow"><span class="keyname">day strip</span><span class="chips" id="zoneKey"></span></div>
+      </div>
+    </div>
+
+    <div id="traitsPane">
+      <div class="hint">Set each villager's personality, then Run. Yellow = changed.</div>
+      <div class="row">
+        <label class="day" for="tRun">village</label><select id="tRun"></select>
+        <label class="day" for="tEval">scenario</label><select id="tEval"></select>
+      </div>
+      <div class="row">
+        <label class="day" for="tPreset">start from</label><select id="tPreset"></select>
+        <input type="text" id="tName" placeholder="name (optional)" style="flex: 1">
+        <button id="tRunBtn" class="primary">Run</button>
+      </div>
+      <div id="traitsStatus"></div>
+      <table id="tSummary"></table>
+      <div class="cards" id="tCards"></div>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+<script>
+"use strict";
+
+// ---------------------------------------------------------------- constants read from the data
+const MAP_URL = "map/hamlet.tmj";
+const LAYOUT_URL = "layout.json";
+const MANIFEST_URL = "replays/manifest.json";
+// Only these two tilesets are used by a drawn layer; the map embeds eight.
+const USED_TILESETS = ["cute_rpg_tiles", "buildings_hq2x"];
+const DRAWN_LAYERS = ["ground", "buildings"];
+const MAX_ZOOM_MULT = 2.5;      // up to 2.5x the fill zoom
+
+// Characters: assets/characters/character1 .. character9, agent i wearing character i + 1, and
+// assets/characters/bartender for the bar's staff. Each folder holds eight 48x48 rotations and no
+// walk frames, so facing is the animation and a small bob carries the walk.
+const CHARACTERS = 9;
+const DIRS = ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"];
+const CHAR_SCALE = 60 / 46;     // a figure fills about 46 px of its frame; drawn about 60 map pixels tall
+const BOB_PX = 1.5;
+
+// One palette for every replay, so a strip means the same thing whichever world is showing.
+const ZONE_COLOUR = {
+  HOME:    "#4c6ef5",
+  FARM:    "#40c057",
+  OFFICE:  "#adb5bd",
+  CANTEEN: "#ff922b",
+  SOCIAL:  "#cc5de8",
+  MARKET:  "#fcc419",
+  TRANSIT: "#343a40",
+};
+// The zones that stay lit when the night overlay comes down: people are inside them after dark.
+const LIT_AT_NIGHT = ["SOCIAL"];
+
+const fail = (msg) => {
+  const el = document.getElementById("err");
+  el.style.display = "block";
+  el.textContent += msg + "\n";
+  console.error(msg);
+};
+
+// ---------------------------------------------------------------- replay model
+// One row is [t, day, t_day, agent, zone, active, queued, E, F, C, dest, journey_start].
+class Replay {
+  constructor(json, layout) {
+    this.meta = json;
+    this.layout = layout;
+    const c = json.columns;
+    this.ix = {};
+    c.forEach((name, i) => { this.ix[name] = i; });
+    this.nAgents = json.n_agents;
+    this.travel = json.travel_ticks;
+    this.ticksPerDay = json.ticks_per_day;
+    this.night = json.night;
+    // The world the run was trained in. These come from the run's manifest via export_replay.py,
+    // never from the layout: the map serves every world, the replay says which one this is.
+    this.capacities = json.capacities || {};
+    this.displayNames = json.display_names || {};
+    this.bar = json.bar || { staffed: false };
+    // rows[t][agent]
+    this.rows = [];
+    for (const r of json.rows) {
+      const t = r[this.ix.t], a = r[this.ix.agent];
+      (this.rows[t] ||= [])[a] = r;
+    }
+    this.maxT = this.rows.length - 1;
+    // per agent, the index within its zone's anchor list, resolved per tick below
+    this.slots = this.buildSlots();
+  }
+
+  // An agent's anchor index inside a zone: stable within a stay, assigned in agent order among the
+  // agents present in that zone on that tick. Nothing here invents behaviour; it only decides which
+  // of the zone's equivalent anchors a given agent stands on.
+  buildSlots() {
+    const slots = [];
+    for (let t = 0; t <= this.maxT; t++) {
+      const row = this.rows[t];
+      if (!row) { slots[t] = []; continue; }
+      const perZone = {};
+      const s = [];
+      for (let a = 0; a < this.nAgents; a++) {
+        const r = row[a];
+        if (!r) continue;
+        const z = r[this.ix.zone];
+        if (z === "TRANSIT") { s[a] = 0; continue; }
+        const key = z + (r[this.ix.queued] ? ":q" : ":a");
+        perZone[key] = (perZone[key] || 0);
+        s[a] = perZone[key];
+        perZone[key]++;
+      }
+      slots[t] = s;
+    }
+    return slots;
+  }
+
+  anchorFor(agent, zoneName, queued, slot) {
+    if (zoneName === "HOME") {
+      const home = this.layout.homes.find((h) => h.agent === agent);
+      if (!home) return null;
+      return queued ? home.queued[0] : home.active[0];
+    }
+    const z = this.layout.zones[zoneName];
+    if (!z) return null;
+    const list = queued ? z.queued : z.active;
+    if (!list || !list.length) return null;
+    return list[Math.min(slot, list.length - 1)];
+  }
+
+  // The position rule, per tick and per agent. At a zone: its anchor. In TRANSIT: linear along the
+  // path from the origin anchor to the destination anchor, arriving on the logged tick exactly.
+  positionOf(agent, t) {
+    const row = this.rows[t];
+    if (!row || !row[agent]) return null;
+    const r = row[agent];
+    const zone = r[this.ix.zone];
+    const queued = r[this.ix.queued];
+    const slot = (this.slots[t] || [])[agent] || 0;
+
+    if (zone !== "TRANSIT") return this.anchorFor(agent, zone, queued, slot);
+
+    const start = r[this.ix.journey_start];
+    const dest = r[this.ix.dest];
+    // the zone the agent stood in on the tick before the journey began
+    const originRow = (this.rows[start - 1] || [])[agent];
+    const originZone = originRow ? originRow[this.ix.zone] : null;
+    const from = originZone && originZone !== "TRANSIT"
+      ? this.anchorFor(agent, originZone, false, (this.slots[start - 1] || [])[agent] || 0)
+      : null;
+    const to = dest ? this.anchorFor(agent, dest, false, slot) : null;
+    if (!from || !to) return from || to;
+    // (t - journey_start) / travel_ticks; on the arrival tick the log already says the destination
+    // zone, so this fraction never reaches 1 and the sprite cannot overshoot.
+    const f = Math.max(0, Math.min(1, (t - start) / this.travel));
+    return [from[0] + (to[0] - from[0]) * f, from[1] + (to[1] - from[1]) * f];
+  }
+
+  isNight(tDay) {
+    const [a, b] = this.night;
+    return tDay >= a || tDay < b;
+  }
+}
+
+// ---------------------------------------------------------------- the scene
+let replay = null, layout = null, manifest = null;
+const homeLabels = {};
+
+// The names printed on the map belong to the replay, so they are set whenever one loads and not
+// once when the scene is built. Drawing them in create() alone left every N = 9 replay wearing the
+// N = 8 world's names, because switching replays does not rebuild the scene.
+function refreshLabels() {
+  if (!replay) return;
+  for (const [agent, t] of Object.entries(homeLabels)) {
+    const show = Number(agent) < replay.nAgents;
+    t.setVisible(show);
+    if (show) t.setText(`${label("HOME")} ${agent}`);
+  }
+}
+let playing = false, tick = 0, speed = 4, acc = 0;
+const sprites = [], tags = [];
+let nightOverlay = null, scene = null;
+const facing = [];              // the last direction each agent was walking
+// camera
+// fitZoom shows the whole map; zoomMult scales it, and fillMult is the zoom that fills the view
+let fitZoom = 1, zoomMult = 1, fillMult = 1, maxMult = MAX_ZOOM_MULT, mapW = 0, mapH = 0, tileW = 32;
+let followAgent = null, camPlaced = false;
+// per-zone map signs, transit lines, the bar's staff sprite, and the day strip
+const zoneSigns = {};
+let transitGfx = null, staffSprite = null, litPatches = [];
+const dayStrip = {};            // agent -> array of zone names for the day so far
+let stripDay = -1;
+
+class Village extends Phaser.Scene {
+  preload() {
+    this.load.tilemapTiledJSON("map", MAP_URL);
+    const byName = {};
+    for (const ts of (window.__mapJson.tilesets || [])) byName[ts.name] = ts;
+    for (const name of USED_TILESETS) {
+      const ts = byName[name];
+      if (!ts) { fail(`tileset "${name}" is not embedded in ${MAP_URL}`); continue; }
+      // URL-encode every segment: one image path contains a space ("interior free.png").
+      const url = "map/" + ts.image.split("/").map(encodeURIComponent).join("/");
+      this.load.image(name, url);
+      this.load.once(`filecomplete-image-${name}`, () => console.log("loaded", url));
+    }
+    for (let c = 1; c <= CHARACTERS; c++) {
+      for (const d of DIRS) this.load.image(`char${c}_${d}`, `assets/characters/character${c}/${d}.png`);
+    }
+    this.load.image("bartender", "assets/characters/bartender/south.png");
+
+    this.load.on("loaderror", (f) => {
+      fail(`FAILED to load ${f.key}\n  url: ${decodeURI(f.src || f.url || "?")}\n`
+         + "  the map is not rendered because an asset is missing.");
+    });
+  }
+
+  create() {
+    scene = this;
+    if (document.getElementById("err").style.display === "block") return;
+
+    const map = this.make.tilemap({ key: "map" });
+    const images = {};
+    for (const name of USED_TILESETS) {
+      const t = map.addTilesetImage(name, name);
+      if (!t) { fail(`addTilesetImage failed for "${name}"`); return; }
+      images[name] = t;
+    }
+    const all = Object.values(images);
+    for (const name of DRAWN_LAYERS) {
+      const l = map.createLayer(name, all, 0, 0);
+      if (!l) fail(`layer "${name}" is absent from the map`);
+    }
+    // the zones layer is an object layer and is never drawn
+
+    // Zone names come from the replay, not the layout: the printed name belongs to the world the
+    // run was trained in (the canteen is Restaurant at N = 8 and Food Street at N = 9), and the
+    // map has no business deciding it. Homes past the replay's population are not drawn at all.
+    // Zone names live on the signs below each rectangle, which also carry the occupancy; a second
+    // name-only label above the rectangle just printed everything twice.
+    for (const h of layout.homes) {
+      homeLabels[h.agent] = this.add.text(h.rect[0] + h.rect[2] / 2, h.rect[1] - 4, "",
+                    { fontSize: "13px", color: "#e4e4e7", stroke: "#000", strokeThickness: 3 })
+          .setOrigin(0.5, 1).setDepth(30);
+    }
+    refreshLabels();
+
+    // One sprite per agent, agent i wearing character i + 1. A village larger than CHARACTERS reuses
+    // them; the numbered badge is what identifies an agent, not its costume.
+    const maxAgents = Math.max(replay.nAgents,
+      ...manifest.replays.map((r) => r.n_agents || 0));
+    for (let a = 0; a < maxAgents; a++) {
+      const s = this.add.sprite(0, 0, `${costume(a)}_south`).setScale(CHAR_SCALE).setDepth(40).setOrigin(0.5, 1);
+      sprites.push(s);
+      tags.push(this.add.text(0, 0, String(a),
+                 { fontSize: "16px", color: "#fff", fontStyle: "bold",
+                   backgroundColor: "#000000aa", padding: { x: 4, y: 1 } })
+                 .setOrigin(0.5, 1).setDepth(41));
+    }
+
+    // The bartender, drawn only for a world whose replay says the bar is staffed. No badge, never
+    // counted: scenery that explains why a solo visit still pays.
+    staffSprite = this.add.sprite(0, 0, "bartender").setScale(CHAR_SCALE).setDepth(39).setOrigin(0.5, 1)
+        .setVisible(false);
+
+    // The transit lines, one graphics object redrawn each tick.
+    transitGfx = this.add.graphics().setDepth(36);
+
+    const w = map.widthInPixels, h = map.heightInPixels;
+    mapW = w; mapH = h; tileW = map.tileWidth;
+    // The night shade reaches well past the map, so the grass around it darkens too at any zoom
+    // (the whole-map view shows at most one map-width of surround on each side).
+    nightOverlay = this.add.rectangle(-2 * w, -2 * h, 5 * w, 5 * h, 0x0b1220, 0).setOrigin(0, 0).setDepth(35);
+
+    // Zones people are inside after dark keep their light: a patch drawn above the night overlay
+    // so the bar and the club do not go dark while three agents are standing in them.
+    litPatches = LIT_AT_NIGHT.filter((z) => layout.zones[z]).map((z) => {
+      const r = layout.zones[z].rect;
+      return this.add.rectangle(r[0], r[1], r[2], r[3], 0xffe08a, 0)
+                 .setOrigin(0, 0).setDepth(36).setBlendMode(Phaser.BlendModes.ADD);
+    });
+
+    // Map signs: the zone's name and its live occupancy, sized to read from a projector.
+    for (const [zone, z] of Object.entries(layout.zones)) {
+      zoneSigns[zone] = this.add.text(z.rect[0] + z.rect[2] / 2, z.rect[1] + z.rect[3] + 6, "",
+        { fontSize: "26px", color: "#ffffff", fontStyle: "bold", align: "center",
+          stroke: "#000000", strokeThickness: 6, backgroundColor: "#00000066", padding: { x: 6, y: 2 } })
+        .setOrigin(0.5, 0).setDepth(37);
+    }
+
+    // Filling the view is the default; "Whole map" zooms out to fitZoom. A resize keeps a filled
+    // view filled, so switching tabs does not leave a margin.
+    const fit = () => {
+      const vw = this.scale.gameSize.width, vh = this.scale.gameSize.height;
+      const wasFill = !camPlaced || Math.abs(zoomMult - fillMult) < 1e-3;
+      // no setBounds: bounds clamp the scroll and stop the camera centring a map smaller than the view
+      fitZoom = Math.min(vw / w, vh / h);
+      fillMult = Math.max(vw / w, vh / h) / fitZoom;
+      maxMult = fillMult * MAX_ZOOM_MULT;
+      document.getElementById("zoom").max = String(Math.round(maxMult * 100));
+      setZoomMult(wasFill ? fillMult : zoomMult, false);
+    };
+    fit();
+    this.scale.on("resize", fit);
+
+    // wheel zooms about the cursor's ground point; drag pans, but not while following an agent
+    this.input.on("wheel", (_p, _o, _dx, dy) => {
+      const next = Math.min(maxMult, Math.max(1, zoomMult * (dy > 0 ? 0.9 : 1.1)));
+      setZoomMult(next, true);
+    });
+    this.input.on("pointermove", (pt) => {
+      if (!pt.isDown || followAgent !== null) return;
+      const cam = this.cameras.main;
+      const cx = cam.midPoint.x - (pt.x - pt.prevPosition.x) / cam.zoom;
+      const cy = cam.midPoint.y - (pt.y - pt.prevPosition.y) / cam.zoom;
+      cam.centerOn(...clampToMap(cx, cy, cam));      // a drag stops at the edge, like the follow
+    });
+    render(tick);
+  }
+
+  update(_time, deltaMs) {
+    if (!replay || !playing) return;
+    acc += (deltaMs / 1000) * speed * 4;          // 4 ticks a second at 1x
+    while (acc >= 1) {
+      acc -= 1;
+      tick = tick + 1;
+      if (tick > replay.maxT) { tick = replay.maxT; playing = false; syncPlayBtn(); break; }
+    }
+    render(tick);
+  }
+}
+
+// ---------------------------------------------------------------- camera
+function applyCamera() {
+  if (!scene) return;
+  const cam = scene.cameras.main;
+  // The zoom is snapped so one tile covers a whole number of screen pixels. At a fractional tile size
+  // neighbouring tiles round to different widths and a thin line of background shows between them.
+  // At or above the fill zoom it rounds up, so the map still covers the view.
+  const want = fitZoom * zoomMult * tileW;
+  const px = zoomMult <= 1.0005 ? Math.floor(want) : zoomMult >= fillMult - 0.0005 ? Math.ceil(want) : Math.round(want);
+  cam.setZoom(Math.max(1, px) / tileW);
+  if (followAgent !== null && replay) {
+    const p = replay.positionOf(followAgent, tick);
+    if (p) { cam.centerOn(...clampToMap(p[0], p[1], cam)); camPlaced = true; return; }
+  }
+  if (!camPlaced || zoomMult <= 1.0005) { cam.centerOn(mapW / 2, mapH / 2); camPlaced = true; return; }
+  cam.centerOn(...clampToMap(cam.midPoint.x, cam.midPoint.y, cam));
+}
+
+// The centre the camera may actually take, so the view never runs off the edge of the map. A
+// followed agent stays centred until it comes within half a screen of an edge, and from there the
+// view stops and the agent walks across it: off-centre near a boundary, but never a black margin.
+// Where the map is smaller than the view in an axis, that axis is simply centred.
+function clampToMap(x, y, cam) {
+  const halfW = cam.width / 2 / cam.zoom, halfH = cam.height / 2 / cam.zoom;
+  const cx = mapW <= halfW * 2 ? mapW / 2 : Math.min(Math.max(x, halfW), mapW - halfW);
+  const cy = mapH <= halfH * 2 ? mapH / 2 : Math.min(Math.max(y, halfH), mapH - halfH);
+  return [cx, cy];
+}
+
+function setZoomMult(m, fromWheel) {
+  zoomMult = Math.min(maxMult, Math.max(1, m));
+  const slider = document.getElementById("zoom");
+  if (!fromWheel || document.activeElement !== slider) slider.value = String(Math.round(zoomMult * 100));
+  document.getElementById("zoomTag").textContent = zoomMult <= 1.001 ? "whole map"
+    : Math.abs(zoomMult - fillMult) < 0.01 ? "fill" : (zoomMult / fillMult).toFixed(2) + "× fill";
+  applyCamera();
+}
+
+// ---------------------------------------------------------------- rendering and HUD
+function hudOnly(t) {
+  tick = Math.max(0, Math.min(replay.maxT, t));
+  const row = replay.rows[tick] || [];
+  const first = row[0];
+  const tDay = first ? first[replay.ix.t_day] : 0;
+  const day = first ? first[replay.ix.day] : 0;
+  hud(row, tDay, day, replay.isNight(tDay));
+}
+
+
+function render(t) {
+  if (!replay) return;
+  if (!sprites.length) { hudOnly(t); return; }     // the scene has not created the sprites yet
+  tick = Math.max(0, Math.min(replay.maxT, t));
+  const row = replay.rows[tick] || [];
+  // The scene is built once, for the largest replay in the manifest; a smaller one hides the rest
+  // rather than leaving last replay's agents standing on the map.
+  for (let a = 0; a < sprites.length; a++) {
+    const show = a < replay.nAgents;
+    sprites[a].setVisible(show);
+    tags[a].setVisible(show);
+    if (!show) continue;
+    const p = replay.positionOf(a, tick);
+    if (!p) continue;
+    let y = p[1];
+    y -= face(a, p);
+    sprites[a].setPosition(p[0], y);
+    tags[a].setPosition(p[0], y - sprites[a].displayHeight - 2);
+  }
+  const first = row[0];
+  const tDay = first ? first[replay.ix.t_day] : 0;
+  const day = first ? first[replay.ix.day] : 0;
+  const night = replay.isNight(tDay);
+  if (nightOverlay) nightOverlay.setFillStyle(0x0b1220, night ? 0.45 : 0);
+  for (const patch of litPatches) patch.setFillStyle(0xffe08a, night ? 0.16 : 0);
+
+  drawTransit(row);
+  placeStaff();
+  updateStrip(row, tDay, day);
+  applyCamera();
+  hud(row, tDay, day, night);
+  const scrub = document.getElementById("scrub");
+  if (document.activeElement !== scrub) scrub.value = String(tick);
+}
+
+// Turn each agent to face the way it is going, and bob it while it walks. The characters have eight
+// rotations and no walk frames, so direction is the animation and the bob stops a turning sprite
+// looking dragged. Returns the bob in pixels, which the caller lifts the sprite by.
+function face(a, p) {
+  const r = (replay.rows[tick] || [])[a];
+  const walking = r && r[replay.ix.zone] === "TRANSIT";
+  if (walking) {
+    const prev = replay.positionOf(a, Math.max(0, tick - 1));
+    if (prev) {
+      const dx = p[0] - prev[0], dy = p[1] - prev[1];
+      if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+        // screen y grows downwards, so a positive dy is south; eight sectors of 45 degrees
+        const k = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8;
+        facing[a] = DIRS[k];
+      }
+    }
+  }
+  sprites[a].setTexture(`${costume(a)}_${facing[a] || "south"}`);
+  return walking ? Math.abs(Math.sin(tick * Math.PI / 2)) * BOB_PX : 0;   // two steps a tick
+}
+
+const costume = (a) => `char${(a % CHARACTERS) + 1}`;
+
+// A line from where a journey began to where it ends, fading as the agent arrives, so a walk reads
+// as a walk rather than a sprite sliding across grass.
+function drawTransit(row) {
+  if (!transitGfx) return;
+  transitGfx.clear();
+  const ix = replay.ix;
+  for (let a = 0; a < replay.nAgents; a++) {
+    const r = row[a];
+    if (!r || r[ix.zone] !== "TRANSIT") continue;
+    const start = r[ix.journey_start], dest = r[ix.dest];
+    const originRow = (replay.rows[start - 1] || [])[a];
+    const originZone = originRow ? originRow[ix.zone] : null;
+    if (!originZone || originZone === "TRANSIT" || !dest) continue;
+    const from = replay.anchorFor(a, originZone, false, (replay.slots[start - 1] || [])[a] || 0);
+    const to = replay.anchorFor(a, dest, false, (replay.slots[tick] || [])[a] || 0);
+    if (!from || !to) continue;
+    const f = Math.max(0, Math.min(1, (tick - start) / replay.travel));
+    transitGfx.lineStyle(3, 0xffffff, 0.45 * (1 - f));      // fades to nothing on arrival
+    transitGfx.beginPath();
+    transitGfx.moveTo(from[0], from[1]);
+    transitGfx.lineTo(to[0], to[1]);
+    transitGfx.strokePath();
+  }
+}
+
+// The bar's staff stands at the counter in any world whose replay says the bar is staffed.
+function placeStaff() {
+  if (!staffSprite) return;
+  const on = !!(replay.bar && replay.bar.staffed) && !!layout.zones.SOCIAL;
+  staffSprite.setVisible(on);
+  if (!on) return;
+  const r = layout.zones.SOCIAL.rect;
+  staffSprite.setPosition(r[0] + r[2] * 0.78, r[1] + r[3] * 0.15);   // behind the counter, upper right
+}
+
+// The day strip: one entry per tick of the current day, per agent, reset when the day turns.
+function updateStrip(row, tDay, day) {
+  if (day !== stripDay) {
+    stripDay = day;
+    for (const k of Object.keys(dayStrip)) delete dayStrip[k];
+  }
+  const ix = replay.ix;
+  for (let a = 0; a < replay.nAgents; a++) {
+    const r = row[a];
+    if (!r) continue;
+    (dayStrip[a] ||= [])[tDay] = r[ix.zone];
+  }
+}
+
+// Runs of the same zone collapse into one flex child, so a 240-tick strip is a handful of nodes.
+function stripHtml(a) {
+  const seq = dayStrip[a] || [];
+  const per = replay.ticksPerDay;
+  let html = "", runZone = null, runLen = 0;
+  const flush = () => {
+    if (!runLen) return;
+    const c = ZONE_COLOUR[runZone] || "#52525b";
+    html += `<i style="width:${(runLen / per * 100).toFixed(3)}%;background:${c}"></i>`;
+  };
+  for (let k = 0; k < per; k++) {
+    const z = seq[k] || null;
+    if (z === runZone) { runLen++; continue; }
+    flush(); runZone = z; runLen = 1;
+  }
+  flush();
+  return `<div class="strip">${html}</div>`;
+}
+
+function hhmm(tDay, ticksPerDay) {
+  const mins = Math.floor(tDay * (24 * 60) / ticksPerDay);
+  return String(Math.floor(mins / 60)).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0");
+}
+
+function hud(row, tDay, day, night) {
+  document.getElementById("clock").textContent = hhmm(tDay, replay.ticksPerDay);
+  document.getElementById("day").textContent = `day ${day}`;
+  document.getElementById("nightTag").textContent = night ? "night" : "";
+
+  const ix = replay.ix;
+  const body = document.querySelector("#agents tbody");
+  if (body.dataset.n !== String(replay.nAgents)) {
+    body.innerHTML = "";
+    for (let a = 0; a < replay.nAgents; a++) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="who"><img class="face" alt="" src="assets/characters/character${(a % CHARACTERS) + 1}/south.png">` +
+        `<b>${a}</b></td><td></td><td></td>`;
+      tr.onclick = () => {
+        const f = document.getElementById("follow");
+        f.value = f.value === String(a) ? "" : String(a);
+        f.dispatchEvent(new Event("change"));
+      };
+      body.appendChild(tr);
+    }
+    body.dataset.n = String(replay.nAgents);
+  }
+  const counts = {};
+  for (let a = 0; a < replay.nAgents; a++) {
+    const r = row[a];
+    const tr = body.children[a];
+    tr.classList.toggle("follow", a === followAgent);
+    if (!r) { tr.cells[1].textContent = ""; tr.cells[2].textContent = ""; continue; }
+    const z = r[ix.zone], q = r[ix.queued], act = r[ix.active];
+    const shown = z === "TRANSIT"
+      ? `→ ${label(r[ix.dest])}`
+      : `${label(z)}${q ? " (queued)" : act ? "" : " (idle)"}`;
+    if (z !== "TRANSIT") {
+      counts[z] ||= { active: 0, queued: 0 };
+      if (q) counts[z].queued++; else if (act) counts[z].active++;
+    }
+    tr.cells[1].innerHTML = `${shown}${stripHtml(a)}`;
+    tr.cells[2].innerHTML = `<div class="bars">
+        ${bar(r[ix.E], "var(--accentE)")}${bar(r[ix.F], "var(--accentF)")}${bar(r[ix.C], "var(--accentC)")}
+      </div>
+      <div class="num">${r[ix.E].toFixed(2)} ${r[ix.F].toFixed(2)} ${r[ix.C].toFixed(2)}</div>`;
+  }
+
+  // Places: a bar per zone in its map colour, full at capacity (or at the whole village where there is no limit).
+  const homeActive = (counts.HOME || { active: 0 }).active;
+  document.getElementById("occ").innerHTML = [...Object.keys(layout.zones), "HOME"].map((zone) => {
+    const c = zone === "HOME" ? { active: homeActive, queued: 0 } : (counts[zone] || { active: 0, queued: 0 });
+    const raw = zone === "HOME" ? replay.nAgents : replay.capacities[zone];
+    const unlimited = raw === 0 || raw === undefined || raw === null;
+    const pct = Math.min(100, Math.round(100 * c.active / Math.max(1, unlimited ? replay.nAgents : raw)));
+    const colour = ZONE_COLOUR[zone] || "#71717a";
+    return `<div class="place"><span class="pname"><span class="dot" style="background:${colour}"></span>` +
+      `${zone === "HOME" ? "Homes" : label(zone)}</span>` +
+      `<span class="pbar"><i style="width:${pct}%;background:${colour}"></i></span>` +
+      `<span class="pnum">${c.active}<small>/${unlimited ? "∞" : raw}</small>${c.queued ? `<b>+${c.queued}</b>` : ""}</span></div>`;
+  }).join("");
+
+  // The same numbers on the map itself, so the village can be read without the side panel.
+  for (const [zone, sign] of Object.entries(zoneSigns)) {
+    const c = counts[zone] || { active: 0, queued: 0 };
+    const raw = replay.capacities[zone];
+    const cap = (raw === 0 || raw === undefined) ? "∞" : raw;
+    const q = c.queued ? `  +${c.queued} waiting` : "";
+    sign.setText(`${label(zone)}  ${c.active}/${cap}${q}`);
+  }
+}
+
+// The printed name of a zone travels with the replay, so one layout serves every world the map
+// can hold and no replay is ever labelled with another world's names.
+const label = (zone) => (zone && replay && replay.displayNames[zone]) || zone || "—";
+const bar = (v, colour) =>
+  `<div class="bar"><i style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%;background:${colour}"></i></div>`;
+
+function syncPlayBtn() {
+  document.getElementById("playBtn").textContent = playing ? "Pause" : "Play";
+}
+
+// ---------------------------------------------------------------- replay names
+// How a replay is named for a viewer: what was run, which village, and how it went. The technical id
+// (condition, training seed, checkpoint, evaluation seed) stays in the picker's tooltip. Edit the words here.
+const BASE_NAMES = { A: "Normal villagers", S0: "No name badges", D: "Paid in coins" };
+const VARIANT_NAMES = {
+  "-noclock": "No clock", "-energy_x2_d4": "Energy shock on day 4", "-jobs_closed_d4": "Jobs closed on day 4",
+  "-init_narrow": "Start 70-80% full", "-init_wide": "Start anywhere from low to full",
+};
+const POP_NAMES = {
+  neutral: "Neutral (as trained)", hetero_core: "Mixed personalities", chronotype_split: "Early birds and night owls",
+  metabolism_split: "Half tire fast", aptitude_split: "Farmers and office workers",
+  aptitude_only: "Different job skills", learning_only: "Fast learners",
+};
+const SCHEDULE_NAMES = {
+  RANDOM: "Random moves", "GREEDY-STATE": "Hand-written: needs first",
+  "GREEDY-CLOCK": "Hand-written: by the clock", "GREEDY-CLOCK-WORK": "Hand-written: work first",
+};
+const GROUP_ORDER = ["Study 2 · 9 villagers", "Trait experiments", "Study 1 · 8 villagers"];
+const SCENARIO_BASE = 10000;        // evaluation seed 10000 is scenario 1
+
+// One word for how a village is doing: its lowest need if that is below 0.2, else thriving.
+function mood(needs) {
+  if (!needs) return "";
+  const [word, low] = [["exhausted", needs[0]], ["hungry", needs[1]], ["lonely", needs[2]]]
+    .reduce((a, b) => (b[1] < a[1] ? b : a));
+  return low < 0.2 ? word : "thriving";
+}
+
+function describeReplay(r) {
+  const [, arm = "A", sym = "S1", n = String(r.n_agents), rest = ""] =
+    /^([A-E])-(S[01])-N(\d+)(.*)$/.exec(r.condition || "") || [];
+  const schedule = SCHEDULE_NAMES[(r.id || "").split("_")[1]];
+  const seed = /_seed(\d+)_/.exec(r.id || "");
+  const study = n === "8" ? "Study 1 · 8 villagers" : n === "9" ? "Study 2 · 9 villagers" : `${n} villagers`;
+  let what, group = study;
+  if (schedule) what = schedule;
+  else if (rest.startsWith("-traits-")) {
+    const name = rest.slice(8);
+    what = name.startsWith("custom-") ? "Custom traits" : `Traits: ${name.replace(/-/g, " ")}`;
+    group = "Trait experiments";
+  } else if (rest.startsWith("-pop_")) {
+    what = POP_NAMES[rest.slice(5)] || rest.slice(5).replace(/_/g, " ");
+    group = "Trait experiments";
+  } else {
+    what = rest ? (VARIANT_NAMES[rest] || rest.replace(/[-_]+/g, " ").trim())
+                : (arm === "D" ? BASE_NAMES.D : sym === "S0" ? BASE_NAMES.S0 : BASE_NAMES.A);
+  }
+  if (/_argmax_/.test(r.id || "")) what += ", favourite move only";
+  const scenario = (r.eval_seed || SCENARIO_BASE) - SCENARIO_BASE + 1;
+  const title = [what, seed ? `Village ${Number(seed[1]) + 1}` : "", mood(r.needs), scenario !== 1 ? `scenario ${scenario}` : ""]
+    .filter(Boolean).join(" · ");
+  return { title, group, subtitle: `${study} · scenario ${scenario}` };
+}
+
+// The picker, grouped by study; titles shared by several replays are numbered.
+function fillPicker() {
+  const sel = document.getElementById("replaySel");
+  sel.innerHTML = "";
+  const described = manifest.replays.map((r) => ({ r, d: describeReplay(r) }));
+  const seen = {}, count = {};
+  for (const { d } of described) seen[d.group + d.title] = (seen[d.group + d.title] || 0) + 1;
+  const rank = (g) => (GROUP_ORDER.includes(g) ? GROUP_ORDER.indexOf(g) : GROUP_ORDER.length);
+  const groups = [...new Set(described.map(({ d }) => d.group))].sort((a, b) => rank(a) - rank(b));
+  for (const g of groups) {
+    const og = document.createElement("optgroup");
+    og.label = g;
+    for (const { r, d } of described.filter(({ d }) => d.group === g).sort((a, b) => a.d.title.localeCompare(b.d.title))) {
+      const k = g + d.title;
+      count[k] = (count[k] || 0) + 1;
+      const o = new Option(seen[k] > 1 ? `${d.title} (${count[k]})` : d.title, r.id);
+      o.title = r.id;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+}
+
+function paintZoneKey() {
+  document.getElementById("zoneKey").innerHTML = Object.entries(ZONE_COLOUR).map(([z, c]) =>
+    `<span class="chip"><i style="background:${c}"></i>${z === "TRANSIT" ? "walking" : label(z)}</span>`).join("");
+}
+
+// ---------------------------------------------------------------- the traits tab
+// Runs need hamlet-artefacts/scripts/viewer_server.py, which plays the trained village with the traits set here.
+const TRAIT_ROWS = [
+  ["appetite", "appetite", (v) => v.toFixed(2)],
+  ["metabolism", "metabolism", (v) => v.toFixed(2)],
+  ["chronotype", "bedtime shift", (v) => `${v > 0 ? "+" : ""}${v.toFixed(1)} h`],
+  ["laziness", "laziness", (v) => v.toFixed(2)],
+  ["aptitude.0", "farm skill", (v) => v.toFixed(2)],
+  ["aptitude.1", "office skill", (v) => v.toFixed(2)],
+  ["learning_rate", "learning", (v) => v.toFixed(3)],
+];
+const SUMMARY_ROWS = [
+  ["mean_D", "drive (lower is better)", (v) => v.toFixed(3)], ["mean_E", "energy", (v) => v.toFixed(2)],
+  ["mean_F", "food", (v) => v.toFixed(2)], ["mean_C", "social", (v) => v.toFixed(2)],
+  ["frac_HOME", "time at home", (v) => `${(v * 100).toFixed(1)}%`], ["frac_SOCIAL", "time at the bar", (v) => `${(v * 100).toFixed(1)}%`],
+  ["frac_TRANSIT", "time walking", (v) => `${(v * 100).toFixed(1)}%`], ["frac_JOBS", "time at work", (v) => `${(v * 100).toFixed(1)}%`],
+  ["bar_visits_per_day", "bar visits a day", (v) => v.toFixed(2)], ["copresence_at_bar", "company at the bar", (v) => v.toFixed(2)],
+];
+let traitMeta = null, traitValues = [];
+const $ = (id) => document.getElementById(id);
+const traitOf = (t, key) => key.startsWith("aptitude.") ? t.aptitude[Number(key.slice(9))] : t[key];
+const traitSet = (t, key, v) => { if (key.startsWith("aptitude.")) t.aptitude[Number(key.slice(9))] = v; else t[key] = v; };
+const cloneTraits = (list) => list.map((t) => ({ ...t, aptitude: [...t.aptitude] }));
+
+function setupTraits() {
+  const show = (traits) => {
+    $("wrap").classList.toggle("wide", traits);
+    $("tabReplay").classList.toggle("on", !traits);
+    $("tabTraits").classList.toggle("on", traits);
+  };
+  $("tabReplay").onclick = () => show(false);
+  $("tabTraits").onclick = async () => { show(true); if (!traitMeta) await loadTraitMeta(); };
+  $("tRunBtn").onclick = runTraits;
+  $("tPreset").onchange = () => {
+    if ($("tPreset").value === "custom") return;
+    traitValues = cloneTraits(traitMeta.populations[$("tPreset").value]);
+    renderTraitCards();
+  };
+  $("tEval").onchange = () => loadTraitMeta(Number($("tEval").value));
+}
+
+async function loadTraitMeta(evalSeed) {
+  const status = $("traitsStatus");
+  try {
+    const res = await fetch(`api/meta?eval_seed=${evalSeed || ""}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    traitMeta = await res.json();
+  } catch (e) {
+    status.className = "bad";
+    status.textContent = "The trait runner is not running. Start the viewer with: cd ~/Desktop/Dissertation && " +
+      "uv run python ~/Desktop/hamlet-artefacts/scripts/viewer_server.py";
+    return;
+  }
+  status.className = ""; status.textContent = "";
+  if (!$("tRun").options.length) {
+    for (const r of traitMeta.runs) $("tRun").add(new Option(`Village ${r.seed + 1} · ${r.look}`, r.seed));
+    $("tRun").value = String((traitMeta.runs.find((r) => r.state === "escaped") || traitMeta.runs[0]).seed);
+    for (const s of traitMeta.eval_seeds) $("tEval").add(new Option(`Scenario ${s - traitMeta.eval_seeds[0] + 1}`, s));
+    for (const p of Object.keys(traitMeta.populations)) $("tPreset").add(new Option(POP_NAMES[p] || p, p));
+    $("tPreset").add(new Option("custom (edited)", "custom"));
+    $("tPreset").value = "neutral";
+  }
+  if ($("tPreset").value !== "custom" || !traitValues.length) {
+    traitValues = cloneTraits(traitMeta.populations[$("tPreset").value === "custom" ? "neutral" : $("tPreset").value]);
+    renderTraitCards();
+  }
+}
+
+function renderTraitCards() {
+  const box = $("tCards");
+  box.innerHTML = "";
+  traitValues.forEach((t, a) => {
+    const look = (a % CHARACTERS) + 1;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<header><img src="assets/characters/character${look}/south.png" alt="character ${look}">` +
+      `<div><div class="who">Agent ${a}</div><div class="day">character ${look}</div></div></header>`;
+    for (const [key, name, fmt] of TRAIT_ROWS) {
+      const [lo, hi] = traitMeta.caps[key.split(".")[0]];
+      const neutral = traitOf(traitMeta.neutral, key);
+      const row = document.createElement("label");
+      row.className = "trait";
+      row.innerHTML = `<span>${name}</span><input type="range" min="${lo}" max="${hi}" step="any"><span></span>`;
+      const input = row.querySelector("input"), out = row.lastElementChild;
+      input.value = String(traitOf(t, key));
+      const paint = (v) => { out.textContent = fmt(v); row.classList.toggle("changed", Math.abs(v - neutral) > 1e-6); };
+      input.oninput = () => {
+        const v = Math.round(Number(input.value) * 1000) / 1000;
+        traitSet(t, key, v); paint(v); $("tPreset").value = "custom";
+      };
+      paint(traitOf(t, key));
+      card.appendChild(row);
+    }
+    box.appendChild(card);
+  });
+}
+
+async function runTraits() {
+  const status = $("traitsStatus"), btn = $("tRunBtn");
+  btn.disabled = true; status.className = "";
+  status.textContent = "Playing the village with these traits (about 10-20 seconds)…";
+  try {
+    const res = await fetch("api/run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seed: Number($("tRun").value), eval_seed: Number($("tEval").value),
+                             name: $("tName").value, traits: traitValues }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
+    manifest = await (await fetch(MANIFEST_URL, { cache: "no-store" })).json();
+    fillPicker();
+    await loadReplay(out.id);
+    const made = manifest.replays.find((r) => r.id === out.id);
+    status.textContent = `Loaded "${made ? describeReplay(made).title : out.id}". Press Replay to play it. Days 1-5:`;
+    const s = out.summary;
+    $("tSummary").innerHTML = "<tr><th></th><th>neutral</th><th>these traits</th></tr>" + SUMMARY_ROWS.map(
+      ([k, name, fmt]) => `<tr><td>${name}</td><td>${fmt(s.neutral[k])}</td><td>${fmt(s.changed[k])}</td></tr>`).join("");
+  } catch (e) {
+    status.className = "bad"; status.textContent = `Run failed: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------- boot
+async function loadReplay(id) {
+  const entry = manifest.replays.find((r) => r.id === id) || manifest.replays[0];
+  document.getElementById("replaySel").value = entry.id;      // however the replay was chosen
+  const json = await (await fetch(`replays/${entry.file}`, { cache: "no-store" })).json();
+  const keepTick = replay ? tick : hourTick(6, json.ticks_per_day) + json.ticks_per_day;
+  replay = new Replay(json, layout);
+  refreshLabels();
+  paintZoneKey();
+  const replayLabel = document.getElementById("replayLabel");
+  replayLabel.textContent = describeReplay(entry).subtitle;
+  replayLabel.title = entry.id;
+  const scrub = document.getElementById("scrub");
+  scrub.max = String(replay.maxT);
+  // Switching replay holds the clock still: the point of switching is to see the same minute in
+  // another world, and rewinding to tick 0 threw that away every time.
+  tick = Math.max(0, Math.min(replay.maxT, keepTick));
+  acc = 0; playing = false; syncPlayBtn();
+  stripDay = -1;
+  fillStripFromStart();
+  syncFollowOptions();
+  render(tick);
+}
+
+// Playback starts at 06:00 of day 1, and a jump backwards has to rebuild the strip, which is
+// otherwise accumulated tick by tick as the day plays.
+const hourTick = (hour, perDay) => Math.round(hour / 24 * perDay);
+
+function fillStripFromStart() {
+  stripDay = -1;
+  for (const k of Object.keys(dayStrip)) delete dayStrip[k];
+  if (!replay) return;
+  const ix = replay.ix;
+  const day = ((replay.rows[tick] || [])[0] || [])[ix.day];
+  if (day === undefined) return;
+  stripDay = day;
+  for (let t = day * replay.ticksPerDay; t <= tick; t++) {
+    const row = replay.rows[t];
+    if (!row) continue;
+    for (let a = 0; a < replay.nAgents; a++) {
+      const r = row[a];
+      if (r) (dayStrip[a] ||= [])[r[ix.t_day]] = r[ix.zone];
+    }
+  }
+}
+
+function syncFollowOptions() {
+  const sel = document.getElementById("follow");
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">none</option>';
+  for (let a = 0; a < replay.nAgents; a++) {
+    const o = document.createElement("option");
+    o.value = String(a); o.textContent = `agent ${a}`;
+    sel.appendChild(o);
+  }
+  sel.value = (keep !== "" && Number(keep) < replay.nAgents) ? keep : "";
+  followAgent = sel.value === "" ? null : Number(sel.value);
+}
+
+function goTo(t) {
+  const before = tick;
+  tick = Math.max(0, Math.min(replay.maxT, t));
+  if (tick < before) fillStripFromStart();
+  render(tick);
+}
+
+(async function boot() {
+  try {
+    const [mapJson, lay, man] = await Promise.all([
+      fetch(MAP_URL).then((r) => r.json()),
+      fetch(LAYOUT_URL).then((r) => r.json()),
+      fetch(MANIFEST_URL).then((r) => r.json()),
+    ]);
+    window.__mapJson = mapJson;
+    layout = lay; manifest = man;
+
+    const sel = document.getElementById("replaySel");
+    fillPicker();
+    sel.onchange = () => loadReplay(sel.value);
+    window.__load = (id) => loadReplay(id);
+
+    await loadReplay(sel.options[0].value);
+
+    new Phaser.Game({
+      type: Phaser.AUTO, parent: "stage", backgroundColor: "#718f3f",
+      scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
+      pixelArt: true, scene: Village,
+    });
+
+    document.getElementById("playBtn").onclick = () => { playing = !playing; syncPlayBtn(); };
+    document.getElementById("speed").oninput = (e) => {
+      speed = Number(e.target.value);
+      document.getElementById("speedTag").textContent = speed + "×";
+    };
+    document.getElementById("scrub").oninput = (e) => { playing = false; syncPlayBtn(); goTo(Number(e.target.value)); };
+
+    document.getElementById("zoom").oninput = (e) => setZoomMult(Number(e.target.value) / 100, false);
+    document.getElementById("fillBtn").onclick = () => setZoomMult(fillMult, false);
+    document.getElementById("wholeBtn").onclick = () => setZoomMult(1, false);
+    document.getElementById("follow").onchange = (e) => {
+      followAgent = e.target.value === "" ? null : Number(e.target.value);
+      if (followAgent !== null && zoomMult < fillMult * 1.2) setZoomMult(fillMult * 1.6, false);
+      render(tick);
+    };
+    for (const b of document.querySelectorAll(".jump button")) {
+      b.onclick = () => {
+        const day = ((replay.rows[tick] || [])[0] || [])[replay.ix.day] || 0;
+        playing = false; syncPlayBtn();
+        goTo(day * replay.ticksPerDay + hourTick(Number(b.dataset.hour), replay.ticksPerDay));
+      };
+    }
+    document.addEventListener("keydown", (e) => {
+      const tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "select") return;
+      const hour = Math.round(replay.ticksPerDay / 24);
+      if (e.code === "Space") { e.preventDefault(); playing = !playing; syncPlayBtn(); }
+      else if (e.code === "ArrowLeft") { e.preventDefault(); playing = false; syncPlayBtn(); goTo(tick - (e.shiftKey ? hour : 1)); }
+      else if (e.code === "ArrowRight") { e.preventDefault(); playing = false; syncPlayBtn(); goTo(tick + (e.shiftKey ? hour : 1)); }
+    });
+    // the arrival check, run from the console: window.arrivalCheck()
+    window.arrivalCheck = () => runArrivalCheck(replay);
+    window.__tick = () => tick;
+    window.__goTo = (t) => goTo(t);
+    window.__follow = (a) => {
+      const sel = document.getElementById("follow");
+      sel.value = a === null ? "" : String(a);
+      sel.dispatchEvent(new Event("change"));
+    };
+    window.__zoom = (m) => setZoomMult(m, false);
+    window.__perDay = () => (replay ? replay.ticksPerDay : 240);
+    window.__facing = (a) => facing[a] || "south";
+    // The agent worth following at a given tick: one at the bar if anybody is there, else agent 0.
+    window.__busiestAgent = (t) => {
+      const row = (replay.rows[t] || []);
+      for (let a = 0; a < replay.nAgents; a++) {
+        const r = row[a];
+        if (r && r[replay.ix.zone] === "SOCIAL") return a;
+      }
+      return 0;
+    };
+    window.__maxT = () => (replay ? replay.maxT : 0);
+    window.__hasReplay = () => !!replay;
+    window.__ready = true;
+    setupTraits();
+  } catch (e) {
+    fail("boot failed: " + e.message);
+  }
+})();
+
+// ---------------------------------------------------------------- the arrival check
+// window.arrivalCheck() calls this. For every journey, compare the sprite position the rule gives on the arrival tick with the anchor
+// the agent should be standing on, and count mismatches. Returns a summary object.
+function runArrivalCheck(rep) {
+  const ix = rep.ix;
+  let journeys = 0, mismatches = 0, censored = 0, wrongLength = 0;
+  const bad = [];
+  for (let a = 0; a < rep.nAgents; a++) {
+    let start = null;
+    for (let t = 0; t <= rep.maxT; t++) {
+      const r = (rep.rows[t] || [])[a];
+      if (!r) continue;
+      const inTransit = r[ix.zone] === "TRANSIT";
+      if (inTransit && start === null) start = t;
+      if (!inTransit && start !== null) {
+        journeys++;
+        const len = t - start;
+        if (len !== rep.travel) wrongLength++;
+        const want = rep.anchorFor(a, r[ix.zone], r[ix.queued], (rep.slots[t] || [])[a] || 0);
+        const got = rep.positionOf(a, t);
+        if (!want || !got || Math.hypot(want[0] - got[0], want[1] - got[1]) > 0.51) {
+          mismatches++;
+          if (bad.length < 10) bad.push({ agent: a, arriveTick: t, want, got });
+        }
+        start = null;
+      }
+    }
+    if (start !== null) censored++;
+  }
+  const out = { journeys, mismatches, wrongLength, censoredAtEnd: censored, examples: bad };
+  console.log("arrival check:", out);
+  return out;
+}
+</script>

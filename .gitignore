@@ -1,0 +1,34 @@
+# ---- Python ----
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---- experiment outputs: never committed ----
+runs/
+sandbox/runs/
+figures/
+*.parquet
+emissions.csv
+
+# ---- viewer: copied assets, exported replays, screenshots, node modules ----
+viz/assets/
+viz/replays/
+viz/shots/
+viz/node_modules/
+
+# ---- editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+
+# ---- credentials ----
+.env
+*.env
+!.env.example
+
+# ---- local documents: they live with the project artefacts, never in git ----
+docs/
