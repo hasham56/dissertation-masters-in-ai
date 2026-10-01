@@ -793,7 +793,7 @@ function describeReplay(r) {
   if (schedule) what = schedule;
   else if (rest.startsWith("-traits-")) {
     const name = rest.slice(8);
-    what = name.startsWith("custom-") ? "Custom traits" : `Traits: ${name.replace(/-/g, " ")}`;
+    what = name.startsWith("custom-") ? "Custom traits" : `Traits: ${POP_NAMES[name] || name.replace(/-/g, " ")}`;
     group = "Trait experiments";
   } else if (rest.startsWith("-pop_")) {
     what = POP_NAMES[rest.slice(5)] || rest.slice(5).replace(/_/g, " ");
@@ -838,7 +838,7 @@ function paintZoneKey() {
 }
 
 // ---------------------------------------------------------------- the traits tab
-// Runs need hamlet-artefacts/scripts/viewer_server.py, which plays the trained village with the traits set here.
+// Runs need scripts/viewer_server.py, which plays the trained village with the traits set here.
 const TRAIT_ROWS = [
   ["appetite", "appetite", (v) => v.toFixed(2)],
   ["metabolism", "metabolism", (v) => v.toFixed(2)],
@@ -886,8 +886,7 @@ async function loadTraitMeta(evalSeed) {
     traitMeta = await res.json();
   } catch (e) {
     status.className = "bad";
-    status.textContent = "The trait runner is not running. Start the viewer with: cd ~/Desktop/Dissertation && " +
-      "uv run python ~/Desktop/hamlet-artefacts/scripts/viewer_server.py";
+    status.textContent = "The trait runner is not running. Start the viewer with: uv run python scripts/viewer_server.py";
     return;
   }
   status.className = ""; status.textContent = "";
@@ -942,7 +941,8 @@ async function runTraits() {
     const res = await fetch("api/run", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seed: Number($("tRun").value), eval_seed: Number($("tEval").value),
-                             name: $("tName").value, traits: traitValues }),
+                             name: $("tName").value || ($("tPreset").value === "custom" ? "" : $("tPreset").value),
+                             traits: traitValues }),
     });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
@@ -952,6 +952,9 @@ async function runTraits() {
     const made = manifest.replays.find((r) => r.id === out.id);
     status.textContent = `Loaded "${made ? describeReplay(made).title : out.id}". Press Replay to play it. Days 1-5:`;
     const s = out.summary;
+    if (SUMMARY_ROWS.every(([k]) => s.neutral[k] === s.changed[k])) {
+      status.textContent += " (identical: these are the traits the village was trained with; change a slider to see a difference)";
+    }
     $("tSummary").innerHTML = "<tr><th></th><th>neutral</th><th>these traits</th></tr>" + SUMMARY_ROWS.map(
       ([k, name, fmt]) => `<tr><td>${name}</td><td>${fmt(s.neutral[k])}</td><td>${fmt(s.changed[k])}</td></tr>`).join("");
   } catch (e) {
